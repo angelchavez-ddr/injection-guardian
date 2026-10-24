@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f6f7;
+  --foreground: #142229;
+  --card: #ffffff;
+  --card-foreground: #142229;
+  --primary: #0f766e;
+  --primary-foreground: #f4fffd;
+  --secondary: #e6eef1;
+  --secondary-foreground: #1c3038;
+  --muted: #e7eef1;
+  --muted-foreground: #52656e;
+  --border: #d3dfe4;
+  --input: #d3dfe4;
+  --ring: #0f766e;
+  --destructive: #be123c;
+  --sidebar: #102128;
+  --sidebar-foreground: #d5e3e8;
+  --sidebar-muted: #8aa0aa;
+}
+
+.dark {
+  --background: #0b1216;
+  --foreground: #e6eef1;
+  --card: #121c22;
+  --card-foreground: #e6eef1;
+  --primary: #2dd4bf;
+  --primary-foreground: #04221e;
+  --secondary: #1a282f;
+  --secondary-foreground: #d5e3e8;
+  --muted: #18262d;
+  --muted-foreground: #93a6b0;
+  --border: #24343c;
+  --input: #24343c;
+  --ring: #2dd4bf;
+  --destructive: #fb7185;
+  --sidebar: #0d171c;
+  --sidebar-foreground: #d5e3e8;
+  --sidebar-muted: #8aa0aa;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
 }

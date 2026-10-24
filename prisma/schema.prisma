@@ -1,0 +1,107 @@
+// Prisma ORM 7. The connection URL lives in prisma.config.ts, not in this
+// datasource block. Local demo mode uses a SQLite file. Remote Turso uses the
+// same SQLite provider through the libSQL driver adapter at runtime.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// Authorized input source. Credentials are never stored on this model.
+model Connector {
+  id         String          @id
+  type       String
+  name       String
+  status     String
+  configJson String          @default("{}")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  events     SecurityEvent[]
+}
+
+/// One screened item. The excerpt is a short redacted snippet, not the full body.
+model SecurityEvent {
+  id                  String   @id
+  correlationId       String
+  connectorId         String?
+  source              String
+  externalId          String?
+  simulated           Boolean  @default(false)
+  metadataOnly        Boolean  @default(false)
+  stage               String
+  status              String
+  severity            String
+  riskScore           Int
+  confidence          Float
+  summary             String
+  requiresHumanReview Boolean  @default(false)
+  attackTypesJson     String   @default("[]")
+  recommendationsJson String   @default("[]")
+  indicatorsJson      String   @default("[]")
+  excerpt             String?
+  subject             String?
+  policyDecision      String
+  policyReason        String
+  policyActionsJson   String   @default("[]")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  connector Connector?       @relation(fields: [connectorId], references: [id], onDelete: SetNull)
+  analysis  AnalysisResult?
+  auditLogs AuditLog[]
+
+  @@unique([source, externalId])
+  @@index([severity])
+  @@index([status])
+  @@index([createdAt])
+  @@index([correlationId])
+  @@index([requiresHumanReview])
+}
+
+/// Model or local analysis status. Model output is advisory and is not authorization.
+model AnalysisResult {
+  id                 String   @id
+  eventId            String   @unique
+  provider           String
+  model              String?
+  status             String
+  reportedConfidence Float?
+  advisoryScore      Int?
+  advisorySeverity   String?
+  advisorySummary         String?
+  modelIndicatorsJson     String   @default("[]")
+  advisoryRecommendationsJson String @default("[]")
+  error                   String?
+  createdAt          DateTime @default(now())
+
+  event SecurityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+/// Append-only security trail. Do not store credentials, tokens, or full message bodies.
+model AuditLog {
+  id             String   @id
+  eventId        String?
+  correlationId  String
+  stage          String
+  status         String
+  source         String
+  externalId     String?
+  severity       String?
+  riskScore      Int?
+  indicatorsJson String   @default("[]")
+  policyDecision String
+  policyReason   String
+  aiProvider     String?
+  aiModel        String?
+  createdAt      DateTime @default(now())
+
+  event SecurityEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([correlationId])
+  @@index([createdAt])
+  @@index([eventId])
+}
