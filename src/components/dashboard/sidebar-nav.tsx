@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/investigations", label: "Investigations", icon: ShieldAlert },
+  { href: "/investigations", label: "Hallazgos", icon: ShieldAlert },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

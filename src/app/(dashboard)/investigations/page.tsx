@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
+import { ConsoleSkeleton } from "@/components/dashboard/console-skeleton";
 import { FindingsTable } from "@/components/dashboard/findings-table";
 import { Alert } from "@/components/ui/alert";
 import { FINDING_STATUSES, SEVERITIES, type FindingStatus, type Severity } from "@/lib/security/types";
@@ -12,7 +13,7 @@ export default function InvestigationsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading investigations…</p>}>
+    <Suspense fallback={<ConsoleSkeleton />}>
       <InvestigationsContent searchParams={searchParams} />
     </Suspense>
   );
@@ -35,10 +36,7 @@ async function InvestigationsContent({
   return (
     <>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Investigations</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Review screened items. A missing indicator is not a clean bill of health.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Hallazgos</h1>
       </div>
       {data.locked ? (
         <Alert>Authentication is not implemented. Findings stay unavailable outside demo mode.</Alert>

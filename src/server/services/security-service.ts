@@ -9,7 +9,7 @@ import { runSecurityPipeline } from "@/lib/security/pipeline";
 import type { ContentSource, ContentType, FindingView } from "@/lib/security/types";
 import { PrismaAuditRepository, isUniqueConstraintError } from "@/server/repositories/prisma-audit-repository";
 import { getMailboxStatus, type MailboxStatus } from "@/server/repositories/user-repository";
-import { selectAnalyzer } from "@/server/services/select-analyzer";
+import { selectAlertReviewer } from "@/server/services/select-analyzer";
 
 const SYNTHETIC_CONNECTOR_ID = "synthetic-inbox";
 
@@ -33,7 +33,7 @@ export async function analyzeSubmission(input: {
   forceAnalysis?: boolean;
 }): Promise<FindingView> {
   const env = getServerEnv();
-  const selected = selectAnalyzer(env);
+  const selected = selectAlertReviewer(env);
   const finding = await runSecurityPipeline(
     {
       ...input,
@@ -108,11 +108,11 @@ export async function getDashboardData() {
     return { locked: true as const, config, session: null, mailbox };
   }
   const repo = getAuditRepository();
-  const [summary, recent] = await Promise.all([
+  const [summary, reviewed] = await Promise.all([
     repo.summarize(),
-    repo.listFindings({ limit: 8 }),
+    repo.listFindings({ limit: 50 }),
   ]);
-  return { locked: false as const, config, session, summary, recent, mailbox };
+  return { locked: false as const, config, session, summary, recent: reviewed.slice(0, 8), reviewed, mailbox };
 }
 
 export async function getInvestigationPage(query: { severity?: FindingView["severity"]; status?: FindingView["status"] }) {

@@ -76,6 +76,7 @@ export async function screenEmailBatch(input: {
     if (!input.repository) {
       return false;
     }
+    await input.repository.releaseIfUnflagged("email", externalId);
     return input.repository.exists("email", externalId);
   };
 

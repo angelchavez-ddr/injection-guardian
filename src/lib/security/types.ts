@@ -167,6 +167,7 @@ export type FindingView = {
 
 export type DashboardSummary = {
   total: number;
+  emailCount: number;
   awaitingReview: number;
   bySeverity: Record<Severity, number>;
   simulatedCount: number;

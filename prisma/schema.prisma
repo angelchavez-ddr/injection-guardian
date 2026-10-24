@@ -23,6 +23,10 @@ model User {
   lastLoginAt  DateTime?
   /// AES-GCM payload for this user's Gmail refresh token. Never store the token in plaintext.
   gmailRefreshTokenEnc String?
+  /// Mailbox address used with the app password. Not a secret; the password itself is encrypted.
+  gmailImapUser        String?
+  /// AES-GCM payload for this user's Gmail app password. Never store the password in plaintext.
+  gmailAppPasswordEnc  String?
   gmailHistoryId       String?
   gmailConnectedAt     DateTime?
   createdAt    DateTime  @default(now())

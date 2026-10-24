@@ -13,4 +13,5 @@ export interface AuditRepository {
   getFinding(id: string): Promise<FindingView | null>;
   summarize(): Promise<DashboardSummary>;
   exists(source: string, externalId: string): Promise<boolean>;
+  releaseIfUnflagged(source: string, externalId: string): Promise<boolean>;
 }

@@ -1,3 +1,4 @@
+import { severityLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Severity } from "@/lib/security/types";
 
@@ -22,5 +23,5 @@ export function Badge({ className, ...props }: React.ComponentProps<"span">) {
 }
 
 export function SeverityBadge({ severity }: { severity: Severity }) {
-  return <Badge className={severityClass[severity]}>{severity}</Badge>;
+  return <Badge className={severityClass[severity]}>{severityLabel(severity)}</Badge>;
 }

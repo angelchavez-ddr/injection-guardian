@@ -9,28 +9,39 @@ export function formatTimestamp(iso: string): string {
 }
 
 export function severityLabel(severity: Severity): string {
-  return severity.charAt(0).toUpperCase() + severity.slice(1);
-}
-
-export function statusLabel(status: FindingStatus): string {
-  switch (status) {
-    case "locally_screened":
-      return "Screened";
-    case "queued":
-      return "Queued";
-    case "analyzed":
-      return "Analyzed";
-    case "analysis_failed":
-      return "Analysis failed";
-    case "review_required":
-      return "Needs review";
+  switch (severity) {
+    case "critical":
+      return "Crítica";
+    case "high":
+      return "Alta";
+    case "medium":
+      return "Media";
+    case "low":
+      return "Baja";
+    case "info":
+      return "Info";
     default: {
-      const unreachable: never = status;
+      const unreachable: never = severity;
       return unreachable;
     }
   }
 }
 
-export function humanizeToken(value: string): string {
-  return value.replaceAll("_", " ");
+export function statusLabel(status: FindingStatus): string {
+  switch (status) {
+    case "locally_screened":
+      return "Revisado";
+    case "queued":
+      return "En cola";
+    case "analyzed":
+      return "Analizado";
+    case "analysis_failed":
+      return "Falló el análisis";
+    case "review_required":
+      return "En revisión";
+    default: {
+      const unreachable: never = status;
+      return unreachable;
+    }
+  }
 }

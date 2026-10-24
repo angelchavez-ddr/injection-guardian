@@ -77,3 +77,190 @@ body {
 ::selection {
   background: color-mix(in srgb, var(--primary) 35%, transparent);
 }
+
+@keyframes inspector-grid-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes inspector-sweep {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes inspector-trace {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes inspector-fill {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes inspector-breathe {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes inspector-sweep-live {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes inspector-live-in {
+  to {
+    opacity: 0.75;
+  }
+}
+
+@keyframes inspector-pulse {
+  0% {
+    transform: scale(0.16);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes inspector-dot {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  70% {
+    transform: scale(1.4);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.inspector-grid {
+  opacity: 1;
+}
+
+.inspector-sweep {
+  transform-box: view-box;
+  transform-origin: 220px 220px;
+  opacity: 0;
+}
+
+.inspector-trace {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+}
+
+.inspector-fill {
+  opacity: 1;
+}
+
+.inspector-live,
+.inspector-pulse {
+  transform-box: view-box;
+  transform-origin: 220px 220px;
+  opacity: 0;
+}
+
+.inspector-dot {
+  opacity: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.inspector-play .inspector-grid {
+  animation: inspector-grid-in 0.4s ease-out both;
+}
+
+.inspector-play .inspector-sweep {
+  animation: inspector-sweep 1.7s cubic-bezier(0.4, 0, 0.2, 1) 0.15s both;
+}
+
+.inspector-play .inspector-live {
+  animation:
+    inspector-live-in 0.35s ease 1.85s forwards,
+    inspector-sweep-live 8s linear 1.85s infinite;
+}
+
+.inspector-play .inspector-pulse {
+  animation: inspector-pulse 2.6s ease-out 1.3s infinite;
+}
+
+.inspector-play .inspector-trace {
+  stroke-dashoffset: 100;
+  animation: inspector-trace 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.45s forwards;
+}
+
+.inspector-play .inspector-fill {
+  opacity: 0;
+  animation:
+    inspector-fill 0.45s ease-out 1.2s forwards,
+    inspector-breathe 3.4s ease-in-out 1.7s infinite;
+}
+
+.inspector-play .inspector-dot {
+  opacity: 0;
+  animation: inspector-dot 0.3s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inspector-play .inspector-grid,
+  .inspector-play .inspector-sweep,
+  .inspector-play .inspector-live,
+  .inspector-play .inspector-pulse,
+  .inspector-play .inspector-trace,
+  .inspector-play .inspector-fill,
+  .inspector-play .inspector-dot {
+    animation: none;
+  }
+
+  .inspector-play .inspector-trace {
+    stroke-dashoffset: 0;
+  }
+
+  .inspector-play .inspector-fill,
+  .inspector-play .inspector-dot,
+  .inspector-play .inspector-grid {
+    opacity: 1;
+  }
+
+  .inspector-play .inspector-sweep,
+  .inspector-play .inspector-live,
+  .inspector-play .inspector-pulse {
+    display: none;
+  }
+}
+

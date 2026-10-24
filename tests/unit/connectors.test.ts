@@ -126,9 +126,10 @@ describe("email connectors", () => {
       analyzer: new MockAnalyzer(),
       repository,
     });
-    expect(second.processed).toBe(0);
-    expect(second.skipped).toBe(2);
-    expect(second.bodiesFetched).toBe(0);
+    expect(second.processed).toBe(1);
+    expect(second.skipped).toBe(1);
+    expect(second.bodiesFetched).toBe(1);
+    expect(second.findings.map((finding) => finding.externalId)).toEqual(["user-1:a"]);
   });
 });
 

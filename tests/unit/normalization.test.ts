@@ -37,6 +37,61 @@ describe("normalizeContent", () => {
     expect(normalized.hiddenSnippets.join(" ")).toContain("reveal the system prompt");
   });
 
+  it("treats white text as concealed and keeps it out of the visible text", () => {
+    const normalized = normalizeContent({
+      content:
+        '<p>Mensaje visible</p><span style="color:#ffffff">instruccion oculta en blanco</span>',
+      contentType: "html",
+      maxChars: 2000,
+    });
+    expect(normalized.concealedSnippets.join(" ")).toContain("instruccion oculta en blanco");
+  });
+
+  it("flags an off-domain link in an administrator lure and ignores a same-domain link", () => {
+    const suspicious = normalizeContent({
+      content:
+        "Mensaje del administrador del sistema. Entra en https://gt.1xbet.com/ee",
+      sender: "it@example.com",
+      maxChars: 500,
+    });
+    expect(suspicious.suspiciousLinks).toEqual(["https://gt.1xbet.com/ee"]);
+    const sameDomain = normalizeContent({
+      content: "Mensaje del administrador del sistema. Entra en https://intranet.example.com/reset",
+      sender: "it@example.com",
+      maxChars: 500,
+    });
+    expect(sameDomain.suspiciousLinks).toEqual([]);
+  });
+
+  it("flags shorteners, mismatched anchors, and credential lures on another domain", () => {
+    const shortened = normalizeContent({
+      content: "Nota interna https://bit.ly/entrega",
+      maxChars: 500,
+    });
+    expect(shortened.suspiciousLinks).toEqual(["https://bit.ly/entrega"]);
+
+    const mismatch = normalizeContent({
+      content: '<a href="https://login.evil.test/reset">https://billing.example.com/invoices</a>',
+      contentType: "html",
+      maxChars: 500,
+    });
+    expect(mismatch.suspiciousLinks).toEqual(["https://login.evil.test/reset"]);
+
+    const harvest = normalizeContent({
+      content: "Verifica tu cuenta en https://login.evil.test/reset",
+      sender: "it@example.com",
+      maxChars: 500,
+    });
+    expect(harvest.suspiciousLinks).toEqual(["https://login.evil.test/reset"]);
+
+    const sameBank = normalizeContent({
+      content: "Verifica tu cuenta en https://billing.example.com/reset",
+      sender: "it@example.com",
+      maxChars: 500,
+    });
+    expect(sameBank.suspiciousLinks).toEqual([]);
+  });
+
   it("flags suspicious links and leaves ordinary https links alone", () => {
     const suspicious = normalizeContent({
       content: "Open http://203.0.113.10/login and javascript:alert(1)",

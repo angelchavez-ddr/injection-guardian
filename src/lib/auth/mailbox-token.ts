@@ -6,6 +6,9 @@ export const MAILBOX_ERROR_CODES = [
   "google_required",
   "not_connected",
   "unreadable_token",
+  "encryption_unavailable",
+  "invalid_app_password",
+  "imap_auth_failed",
   "gmail_denied",
   "gmail_rate_limit",
   "gmail_failed",
@@ -57,6 +60,12 @@ export function mailboxErrorCode(error: unknown): MailboxErrorCode {
   if (error instanceof MailboxAccessError) {
     return error.code;
   }
+  if (isImapAuthFailure(error)) {
+    return "imap_auth_failed";
+  }
+  if (errorCode(error) === "ETHROTTLE") {
+    return "gmail_rate_limit";
+  }
   const status = httpStatus(error);
   const message = error instanceof Error ? error.message : "";
   if (status === 401 || status === 403 || /invalid_grant/i.test(message)) {
@@ -70,6 +79,23 @@ export function mailboxErrorCode(error: unknown): MailboxErrorCode {
 
 function deriveKey(secret: string): Buffer {
   return scryptSync(secret, TOKEN_SALT, 32);
+}
+
+function isImapAuthFailure(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  if ("authenticationFailed" in error && error.authenticationFailed === true) {
+    return true;
+  }
+  return "serverResponseCode" in error && error.serverResponseCode === "AUTHENTICATIONFAILED";
+}
+
+function errorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return undefined;
+  }
+  return typeof error.code === "string" ? error.code : undefined;
 }
 
 function httpStatus(error: unknown): number | undefined {

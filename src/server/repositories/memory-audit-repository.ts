@@ -33,6 +33,7 @@ export class MemoryAuditRepository implements AuditRepository {
     }
     return {
       total: this.findings.length,
+      emailCount: this.findings.filter((finding) => finding.source === "email").length,
       awaitingReview: this.findings.filter((finding) => finding.requiresHumanReview).length,
       bySeverity,
       simulatedCount: this.findings.filter((finding) => finding.simulated).length,
@@ -41,6 +42,17 @@ export class MemoryAuditRepository implements AuditRepository {
 
   async exists(source: string, externalId: string): Promise<boolean> {
     return this.findings.some((finding) => finding.source === source && finding.externalId === externalId);
+  }
+
+  async releaseIfUnflagged(source: string, externalId: string): Promise<boolean> {
+    const index = this.findings.findIndex(
+      (finding) => finding.source === source && finding.externalId === externalId && finding.riskScore === 0,
+    );
+    if (index < 0) {
+      return false;
+    }
+    this.findings.splice(index, 1);
+    return true;
   }
 }
 

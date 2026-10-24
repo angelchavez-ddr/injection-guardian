@@ -25,6 +25,7 @@ export function buildSecurityAnalysisPrompt(input: SecurityAnalysisInput): {
       "riskScore is an integer from 0 to 100.",
       "reportedConfidence is your self-reported coverage from 0 to 1. It is not a probability of compromise.",
       "attackTypes may only use: direct_prompt_injection, indirect_prompt_injection, data_exfiltration, tool_abuse, privilege_escalation, social_engineering, obfuscation, policy_bypass, unknown.",
+      "summary is the inspector report in Spanish, at most two short sentences. Describe what was detected. Do not name a model. Do not use the word revisión. Do not authorize any action.",
     ].join(" "),
     user: [
       `Source: ${input.source}`,

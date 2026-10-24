@@ -1,137 +1,182 @@
 import Link from "next/link";
 import { SeverityBadge } from "@/components/ui/badge";
-import { formatTimestamp, humanizeToken, statusLabel } from "@/lib/format";
-import { CONFIDENCE_MEANING, type FindingView } from "@/lib/security/types";
+import { ThreatRadar } from "@/components/security/threat-radar";
+import { formatTimestamp, statusLabel } from "@/lib/format";
+import { threatRadarScores } from "@/lib/security/threat-radar";
+import {
+  INDICATOR_IDS,
+  type FindingView,
+  type IndicatorId,
+  type PolicyDecisionName,
+  type RecommendedAction,
+} from "@/lib/security/types";
 
 export function FindingDetail({ finding }: { finding: FindingView }) {
+  const narrative = finding.analysis.advisorySummary ?? finding.summary;
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs text-muted-foreground">
-            <Link href="/investigations" className="hover:underline">
-              Investigations
-            </Link>
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{finding.subject || "Untitled finding"}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {finding.source} · {formatTimestamp(finding.createdAt)} UTC · {statusLabel(finding.status)}
-            {finding.simulated ? " · simulated" : ""}
-          </p>
+    <div className="grid items-stretch gap-4 lg:grid-cols-2">
+      <section className="flex min-h-[640px] flex-col overflow-hidden rounded-xl border border-border bg-card">
+        <p className="pt-5 text-center font-mono text-[11px] tracking-[0.28em] text-teal-400">REPORTE AVANZADO</p>
+        <div className="flex flex-1 items-center px-3 pb-2">
+          <ThreatRadar scores={threatRadarScores(finding.indicators)} />
         </div>
-        <SeverityBadge severity={finding.severity} />
-      </div>
-
-      {finding.simulated ? (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-          Simulated mailbox sample. These figures are produced by the local pipeline, not from a production tenant.
-        </p>
-      ) : null}
-
-      <section className="grid gap-3 md:grid-cols-3">
-        <Metric label="Risk score" value={String(finding.riskScore)} />
-        <Metric label="Signal coverage" value={finding.confidence.toFixed(2)} />
-        <Metric label="Policy" value={humanizeToken(finding.policyDecision)} />
-      </section>
-      <p className="text-xs text-muted-foreground">{CONFIDENCE_MEANING}</p>
-
-      <section className="rounded-lg border border-border bg-card px-4 py-4">
-        <h2 className="text-sm font-semibold">Assessment</h2>
-        <p className="mt-2 text-sm leading-6">{finding.summary}</p>
-        {finding.excerpt ? (
-          <p className="mt-3 rounded-md bg-muted px-3 py-2 font-mono text-xs leading-5">{finding.excerpt}</p>
-        ) : null}
       </section>
 
-      <section className="rounded-lg border border-border bg-card px-4 py-4">
-        <h2 className="text-sm font-semibold">Deterministic indicators</h2>
-        {finding.indicators.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No configured indicators matched.</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-3">
-            {finding.indicators.map((indicator) => (
-              <li key={indicator.id} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
-                <p className="text-sm font-medium">
-                  {indicator.name} <span className="font-mono text-xs text-muted-foreground">weight {indicator.weight}</span>
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">{indicator.evidence}</p>
+      <section className="flex min-h-[640px] flex-col gap-5 rounded-xl border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">
+              <Link href="/investigations" className="hover:underline">
+                Hallazgos
+              </Link>
+              <span> · {formatTimestamp(finding.createdAt)}</span>
+            </p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight">{finding.subject || "Sin asunto"}</h1>
+          </div>
+          <SeverityBadge severity={finding.severity} />
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <Metric label="Puntaje" value={String(finding.riskScore)} accent />
+          <Metric label="Estado" value={statusLabel(finding.status)} />
+          <Metric label="Política" value={policyLabel(finding.policyDecision)} />
+        </div>
+
+        <p className="line-clamp-4 text-sm leading-6">{narrative}</p>
+
+        <div>
+          <h2 className="text-[11px] font-medium tracking-[0.16em] text-muted-foreground uppercase">Señales</h2>
+          {finding.indicators.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">Ninguna señal configurada coincidió.</p>
+          ) : (
+            <ul className="mt-3 flex flex-col gap-3">
+              {finding.indicators.map((indicator) => (
+                <li key={indicator.id}>
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="font-medium">{indicatorLabel(indicator.id, indicator.name)}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{indicator.weight}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-teal-300"
+                      style={{ width: `${Math.min(100, (indicator.weight / 40) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{indicator.evidence}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="mt-auto flex flex-col gap-3">
+          <p className="text-sm">
+            {finding.policyActions.length === 0
+              ? "Ninguna herramienta se ejecutó."
+              : finding.policyActions
+                  .map((action) => `${action.tool} · ${action.executed ? "ejecutada" : "no ejecutada"}`)
+                  .join(" · ")}
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {finding.recommendedActions.map((action) => (
+              <li key={action} className="rounded-full bg-muted px-2.5 py-1 text-xs">
+                {actionLabel(action)}
               </li>
             ))}
           </ul>
-        )}
-      </section>
-
-      <section className="rounded-lg border border-border bg-card px-4 py-4">
-        <h2 className="text-sm font-semibold">Defensive recommendations</h2>
-        <ul className="mt-2 flex flex-wrap gap-2">
-          {finding.recommendedActions.map((action) => (
-            <li key={action} className="rounded-full bg-muted px-2 py-1 text-xs">
-              {humanizeToken(action)}
-            </li>
-          ))}
-        </ul>
-        {finding.attackTypes.length > 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Possible categories: {finding.attackTypes.map(humanizeToken).join(", ")}.
-          </p>
-        ) : null}
-      </section>
-
-      <section className="rounded-lg border border-border bg-card px-4 py-4">
-        <h2 className="text-sm font-semibold">Advisory model output</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          This panel does not authorize tools. Provider {finding.analysis.provider ?? "not called"} · {finding.analysis.status}
-          {finding.analysis.model ? ` · ${finding.analysis.model}` : ""}
-        </p>
-        {finding.analysis.reportedConfidence !== null ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Model-reported confidence {finding.analysis.reportedConfidence.toFixed(2)} is not a probability of compromise.
-          </p>
-        ) : null}
-        <p className="mt-2 text-sm leading-6">
-          {finding.analysis.advisorySummary ?? finding.analysis.error ?? "The analyzer was not called for this item."}
-        </p>
-      </section>
-
-      <section className="rounded-lg border border-border bg-card px-4 py-4">
-        <h2 className="text-sm font-semibold">Policy decision</h2>
-        <p className="mt-2 text-sm leading-6">{finding.policyReason}</p>
-        {finding.policyActions.length > 0 ? (
-          <ul className="mt-3 flex flex-col gap-2">
-            {finding.policyActions.map((action) => (
-              <li key={`${action.tool}-${action.decision}`} className="text-sm">
-                <span className="font-mono">{action.tool}</span> · {action.decision} · {action.executed ? "recorded" : "not executed"}
-                <span className="block text-muted-foreground">{action.reason}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">No tool call was executed.</p>
-        )}
-      </section>
-
-      <section className="rounded-lg border border-border bg-card px-4 py-4">
-        <h2 className="text-sm font-semibold">Audit trail</h2>
-        <ol className="mt-3 flex flex-col gap-3">
-          {finding.auditLogs.map((entry) => (
-            <li key={entry.id} className="text-sm">
-              <p className="font-medium">
-                {entry.stage} · {entry.status}
-              </p>
-              <p className="text-muted-foreground">{entry.policyReason}</p>
-            </li>
-          ))}
-        </ol>
+          {finding.excerpt ? (
+            <p className="line-clamp-2 rounded-md bg-muted px-3 py-2 font-mono text-xs leading-5">{finding.excerpt}</p>
+          ) : null}
+        </div>
       </section>
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
-    <article className="rounded-lg border border-border bg-card px-4 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-mono text-xl">{value}</p>
+    <article className="rounded-lg border border-border px-3 py-3">
+      <p className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">{label}</p>
+      <p className={`mt-1 leading-tight tabular-nums ${accent ? "text-3xl font-semibold text-teal-300" : "text-lg"}`}>
+        {value}
+      </p>
     </article>
   );
+}
+
+function indicatorLabel(id: string, fallback: string): string {
+  if (!isIndicatorId(id)) {
+    return fallback;
+  }
+  switch (id) {
+    case "instruction_override":
+      return "Anulación de instrucciones";
+    case "role_override":
+      return "Suplantación de rol";
+    case "system_prompt_exfiltration":
+      return "Extracción del prompt";
+    case "data_exfiltration":
+      return "Extracción de datos";
+    case "tool_abuse":
+      return "Abuso de herramientas";
+    case "privilege_escalation":
+      return "Escalada de privilegios";
+    case "obfuscation":
+      return "Ofuscación";
+    case "hidden_markup":
+      return "Texto oculto";
+    case "suspicious_link":
+      return "Enlace sospechoso";
+    default: {
+      const unreachable: never = id;
+      return unreachable;
+    }
+  }
+}
+
+function isIndicatorId(id: string): id is IndicatorId {
+  return INDICATOR_IDS.some((indicatorId) => indicatorId === id);
+}
+
+function policyLabel(decision: PolicyDecisionName): string {
+  switch (decision) {
+    case "allow":
+      return "Permitido";
+    case "deny":
+      return "Denegado";
+    case "require_approval":
+      return "Aprobar";
+    case "fail_closed":
+      return "Cerrado";
+    case "not_applicable":
+      return "No aplica";
+    default: {
+      const unreachable: never = decision;
+      return unreachable;
+    }
+  }
+}
+
+function actionLabel(action: RecommendedAction): string {
+  switch (action) {
+    case "quarantine":
+      return "Cuarentena";
+    case "require_human_review":
+      return "Revisión humana";
+    case "block_tool_execution":
+      return "Bloquear herramientas";
+    case "strip_untrusted_instructions":
+      return "Quitar instrucciones";
+    case "notify_analyst":
+      return "Avisar al analista";
+    case "allow_with_monitoring":
+      return "Monitorear";
+    case "no_action":
+      return "Sin acción";
+    default: {
+      const unreachable: never = action;
+      return unreachable;
+    }
+  }
 }

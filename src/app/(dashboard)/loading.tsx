@@ -1,3 +1,5 @@
+import { ConsoleSkeleton } from "@/components/dashboard/console-skeleton";
+
 export default function DashboardLoading() {
-  return <p className="text-sm text-muted-foreground">Loading the console…</p>;
+  return <ConsoleSkeleton />;
 }

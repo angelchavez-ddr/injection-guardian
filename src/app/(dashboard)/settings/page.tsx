@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ConsoleSkeleton } from "@/components/dashboard/console-skeleton";
 import { connection } from "next/server";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -6,11 +7,11 @@ import { requireUserSession } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env/server";
 import { publicRuntimeConfig } from "@/lib/env/public-config";
 import { GMAIL_ALLOWED_OPERATIONS } from "@/lib/connectors/email/gmail/scopes";
-import { getMailboxStatus, listAllUsers } from "@/server/repositories/user-repository";
+import { getMailboxStatus, listAllUsers, type MailboxStatus } from "@/server/repositories/user-repository";
 
 export default function SettingsPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading settings…</p>}>
+    <Suspense fallback={<ConsoleSkeleton />}>
       <SettingsContent />
     </Suspense>
   );
@@ -45,10 +46,7 @@ async function SettingsContent() {
         <Item label="Requested provider" value={config.requestedProvider} />
         <Item label="Active provider" value={`${config.activeProvider} (${config.activeModel})`} />
         <Item label="Provider note" value={config.providerReason} />
-        <Item
-          label="Gmail de esta cuenta"
-          value={mailbox.connected ? "conectado, solo lectura" : "sin conectar"}
-        />
+        <Item label="Gmail de esta cuenta" value={mailboxLabel(mailbox)} />
         <Item label="Gmail scope" value={config.gmailScope} />
         <Item label="Database" value={config.databaseKind} />
       </dl>
@@ -118,6 +116,21 @@ async function SettingsContent() {
       </section>
     </>
   );
+}
+
+function mailboxLabel(mailbox: MailboxStatus): string {
+  switch (mailbox.method) {
+    case "app_password":
+      return `IMAP solo lectura (${mailbox.mailboxEmail ?? "conectada"})`;
+    case "oauth":
+      return "OAuth, solo lectura";
+    case undefined:
+      return "sin conectar";
+    default: {
+      const unreachable: never = mailbox.method;
+      return unreachable;
+    }
+  }
 }
 
 function Item({ label, value }: { label: string; value: string }) {

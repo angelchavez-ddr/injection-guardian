@@ -29,5 +29,11 @@ describe("mailbox credentials", () => {
     expect(mailboxErrorCode(new MailboxAccessError("not_connected"))).toBe("not_connected");
     expect(mailboxErrorCode(new Error("invalid_grant"))).toBe("gmail_denied");
     expect(mailboxErrorCode(new Error("boom"))).toBe("gmail_failed");
+    expect(mailboxErrorCode(Object.assign(new Error("rejected"), { authenticationFailed: true }))).toBe(
+      "imap_auth_failed",
+    );
+    expect(mailboxErrorCode(Object.assign(new Error("slow-imap"), { code: "ETHROTTLE" }))).toBe(
+      "gmail_rate_limit",
+    );
   });
 });

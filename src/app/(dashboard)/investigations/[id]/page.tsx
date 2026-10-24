@@ -1,13 +1,14 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
+import { ConsoleSkeleton } from "@/components/dashboard/console-skeleton";
 import { FindingDetail } from "@/components/security/finding-detail";
 import { Alert } from "@/components/ui/alert";
 import { getInvestigation } from "@/server/services/security-service";
 
 export default function InvestigationPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading finding…</p>}>
+    <Suspense fallback={<ConsoleSkeleton />}>
       <InvestigationContent params={params} />
     </Suspense>
   );

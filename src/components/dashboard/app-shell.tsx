@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { LogOut, ShieldCheck, User as UserIcon } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
+import { ConsoleSkeleton } from "@/components/dashboard/console-skeleton";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { requireUserSession } from "@/lib/auth/session";
@@ -20,24 +21,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="px-3 pb-4">
-            <Suspense fallback={<p className="px-3 text-sm text-sidebar-muted">Loading navigation</p>}>
+            <Suspense
+              fallback={
+                <div className="flex flex-col gap-2 px-3" aria-hidden>
+                  <div className="h-8 animate-pulse rounded-md bg-white/10" />
+                  <div className="h-8 animate-pulse rounded-md bg-white/10" />
+                  <div className="h-8 animate-pulse rounded-md bg-white/10" />
+                </div>
+              }
+            >
               <SidebarNav />
             </Suspense>
           </div>
         </div>
         <div className="border-t border-white/10 px-4 py-3">
-          <Suspense fallback={<p className="text-xs text-sidebar-muted">Verifying session…</p>}>
+          <Suspense
+            fallback={
+              <div className="h-10 animate-pulse rounded-md bg-white/10" aria-hidden />
+            }
+          >
             <UserSessionBadge />
           </Suspense>
         </div>
       </aside>
       <div className="min-w-0">
-        <header className="hidden items-center justify-between border-b border-border px-6 py-3 md:flex">
-          <p className="text-sm text-muted-foreground">SOC Console. External content is untrusted data.</p>
+        <header className="hidden items-center justify-end border-b border-border px-6 py-3 md:flex">
           <ThemeToggle />
         </header>
-        <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 md:px-6">
-          <Suspense fallback={<p className="text-sm text-muted-foreground">Verifying session…</p>}>
+        <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-4 py-5 md:px-6">
+          <Suspense fallback={<ConsoleSkeleton />}>
             <ProtectedContent>{children}</ProtectedContent>
           </Suspense>
         </main>

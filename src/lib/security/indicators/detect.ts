@@ -1,5 +1,10 @@
-import { redactSensitive, type NormalizedContent } from "@/lib/security/normalization/normalize";
-import { defaultIndicatorRules, type IndicatorRule } from "@/lib/security/indicators/rules";
+import { ADMIN_LURE, redactSensitive, type NormalizedContent } from "@/lib/security/normalization/normalize";
+import {
+  ACCOUNT_SOLICITATION,
+  PAYMENT_PRESSURE,
+  defaultIndicatorRules,
+  type IndicatorRule,
+} from "@/lib/security/indicators/rules";
 import type { IndicatorId } from "@/lib/security/types";
 
 export type DetectedIndicator = {
@@ -31,6 +36,15 @@ export function detectIndicators(
   const hiddenText = normalized.hiddenSnippets.join("\n");
   if (hiddenText && rules.some((rule) => rule.pattern.test(hiddenText))) {
     add("hidden_markup", hiddenText);
+  }
+  if (normalized.concealedSnippets.length > 0) {
+    add("hidden_markup", normalized.concealedSnippets.join("\n"));
+  }
+  if (ADMIN_LURE.test(normalized.scanText) && normalized.suspiciousLinks.length > 0) {
+    add("role_override", "El mensaje se presenta como administrador y enlaza fuera de su dominio.");
+  }
+  if (PAYMENT_PRESSURE.test(normalized.scanText) && ACCOUNT_SOLICITATION.test(normalized.scanText)) {
+    add("data_exfiltration", "Pide un número de cuenta bajo presión de urgencia.");
   }
 
   const primaryHit = [...found.keys()].some((id) => !SUPPORTING.has(id));

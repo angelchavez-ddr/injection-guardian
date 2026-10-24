@@ -44,7 +44,25 @@ const HOMOGLYPHS: Record<string, string> = {
 };
 
 const HIDDEN_STYLE =
-  /display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0|font-size\s*:\s*0/i;
+  /display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0|font-size\s*:\s*[01](?:px)?(?:\s|;|$)|text-indent\s*:\s*-|(?:left|top)\s*:\s*-\d{3,}/i;
+const CONCEALED_COLOR =
+  /(?:^|[;"'\s])color\s*:\s*(?:white|transparent|#fff\b|#ffffff\b|rgba?\(\s*255\s*,\s*255\s*,\s*255)/i;
+const WHITE_COLOR_ATTR = /^(?:white|#fff|#ffffff)$/i;
+export const ADMIN_LURE = /\badministrador (?:del sistema|principal)\b/i;
+const PHISHING_LURE =
+  /\b(?:administrador (?:del sistema|principal)|verifica tu cuenta|actualiza tu contrase[nñ]a|confirma tu identidad|ingresa tu contrase[nñ]a|reset your password|verify your account|account (?:suspended|locked))\b/i;
+const SHORTENERS = new Set([
+  "bit.ly",
+  "tinyurl.com",
+  "t.co",
+  "cutt.ly",
+  "rb.gy",
+  "is.gd",
+  "shorturl.at",
+  "goo.gl",
+  "ow.ly",
+  "rebrand.ly",
+]);
 const URL_PATTERN = /\b(?:https?:\/\/[^\s<>"']+|javascript:[^\s<>"']+|data:[^\s<>"']+)/gi;
 const BASE64_PATTERN = /(?<![A-Za-z0-9+/])([A-Za-z0-9+/]{24,}={0,2})(?![A-Za-z0-9+/])/g;
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -61,6 +79,7 @@ export type NormalizedContent = {
   invisibleCharacterCount: number;
   homoglyphCount: number;
   hiddenSnippets: string[];
+  concealedSnippets: string[];
   decodedBlobs: string[];
   suspiciousLinks: string[];
 };
@@ -75,6 +94,7 @@ export function normalizeContent(input: {
   content: string;
   contentType?: ContentType;
   maxChars: number;
+  sender?: string;
 }): NormalizedContent {
   const contentType = input.contentType ?? "text";
   if (input.content.length > input.maxChars) {
@@ -89,9 +109,10 @@ export function normalizeContent(input: {
   const htmlDetected = shouldParseHtml(trimmed, contentType);
   const extracted = htmlDetected
     ? extractHtml(trimmed)
-    : { visibleText: collapse(trimmed), hiddenSnippets: [] as string[] };
+    : { visibleText: collapse(trimmed), hiddenSnippets: [] as string[], concealedSnippets: [] as string[] };
 
   const hiddenFolded = extracted.hiddenSnippets.map((snippet) => foldForScan(snippet).text);
+  const concealedFolded = extracted.concealedSnippets.map((snippet) => foldForScan(snippet).text);
   const combined = [extracted.visibleText, ...extracted.hiddenSnippets].filter(Boolean).join("\n");
   const folded = foldForScan(combined);
   const decodedBlobs = decodeSuspiciousBlobs(combined);
@@ -109,8 +130,9 @@ export function normalizeContent(input: {
     invisibleCharacterCount: folded.invisibleCharacterCount,
     homoglyphCount: folded.homoglyphCount,
     hiddenSnippets: hiddenFolded,
+    concealedSnippets: concealedFolded,
     decodedBlobs: decodedFolded,
-    suspiciousLinks: findSuspiciousLinks(trimmed),
+    suspiciousLinks: findSuspiciousLinks(trimmed, input.sender),
   };
 }
 
@@ -137,7 +159,11 @@ function shouldParseHtml(content: string, contentType: ContentType): boolean {
   return /<(?:html|body|div|p|span|table|a|br|img)\b|<!--/i.test(content);
 }
 
-function extractHtml(content: string): { visibleText: string; hiddenSnippets: string[] } {
+function extractHtml(content: string): {
+  visibleText: string;
+  hiddenSnippets: string[];
+  concealedSnippets: string[];
+} {
   const $ = cheerio.load(content);
   const comments: string[] = [];
   const root = $.root().get(0) as unknown as CommentNode | undefined;
@@ -146,17 +172,25 @@ function extractHtml(content: string): { visibleText: string; hiddenSnippets: st
   }
 
   const hidden: string[] = [];
-  const hiddenNodes = $("[hidden], [aria-hidden='true'], [style]").toArray();
+  const concealed: string[] = [];
+  const hiddenNodes = $("[hidden], [aria-hidden='true'], [style], [color]").toArray();
   for (const element of hiddenNodes) {
+    if (!element.parent) {
+      continue;
+    }
     const style = $(element).attr("style") ?? "";
     const explicitlyHidden =
       $(element).attr("hidden") !== undefined || $(element).attr("aria-hidden") === "true";
-    if (!explicitlyHidden && !HIDDEN_STYLE.test(style)) {
+    const concealedColor = isConcealedColor(style, $(element).attr("color"));
+    if (!explicitlyHidden && !HIDDEN_STYLE.test(style) && !concealedColor) {
       continue;
     }
     const text = collapse($(element).text());
     if (text.length > 0) {
       hidden.push(text);
+      if (concealedColor) {
+        concealed.push(text);
+      }
     }
     $(element).remove();
   }
@@ -164,7 +198,14 @@ function extractHtml(content: string): { visibleText: string; hiddenSnippets: st
   $("script, style, noscript").remove();
   const visibleText = collapse($("body").text());
   const hiddenSnippets = [...hidden, ...comments.map(collapse)].filter((value) => value.length > 0);
-  return { visibleText, hiddenSnippets };
+  return { visibleText, hiddenSnippets, concealedSnippets: concealed.filter((value) => value.length >= 8) };
+}
+
+function isConcealedColor(style: string, colorAttr: string | undefined): boolean {
+  if (CONCEALED_COLOR.test(style)) {
+    return true;
+  }
+  return WHITE_COLOR_ATTR.test((colorAttr ?? "").trim());
 }
 
 function collectComments(node: CommentNode, comments: string[]): void {
@@ -224,15 +265,78 @@ function decodeSuspiciousBlobs(text: string): string[] {
   return blobs;
 }
 
-function findSuspiciousLinks(content: string): string[] {
+function findSuspiciousLinks(content: string, sender?: string): string[] {
   const links = new Set<string>();
+  const domains = identityDomains(content, sender);
+  const lure = PHISHING_LURE.test(content);
   for (const match of content.matchAll(URL_PATTERN)) {
     const url = match[0].replace(/[),.;]+$/, "");
-    if (isSuspiciousUrl(url)) {
+    if (isSuspiciousUrl(url) || (lure && isOutsideIdentity(url, domains))) {
       links.add(url.slice(0, 180));
     }
   }
+  for (const href of mismatchedAnchors(content)) {
+    links.add(href);
+  }
   return [...links];
+}
+
+function mismatchedAnchors(content: string): string[] {
+  if (!/<\s*a\b/i.test(content)) {
+    return [];
+  }
+  const $ = cheerio.load(content);
+  const found: string[] = [];
+  $("a[href]").each((_, element) => {
+    const href = ($(element).attr("href") ?? "").replace(/[),.;]+$/, "");
+    const visibleHost = hostOf(collapse($(element).text()));
+    const hrefHost = hostOf(href);
+    if (visibleHost && hrefHost && visibleHost !== hrefHost) {
+      found.push(href.slice(0, 180));
+    }
+  });
+  return found;
+}
+
+function hostOf(value: string): string | null {
+  const match = value.match(/https?:\/\/[^\s<>"']+/i);
+  if (!match) {
+    return null;
+  }
+  try {
+    return new URL(match[0]).hostname.toLowerCase().replace(/\.$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function identityDomains(content: string, sender?: string): string[] {
+  const domains = new Set<string>();
+  const addEmail = (email: string) => {
+    const domain = email.split("@")[1]?.toLowerCase();
+    if (domain) {
+      domains.add(domain);
+    }
+  };
+  if (sender) {
+    addEmail(sender);
+  }
+  for (const match of content.matchAll(EMAIL_PATTERN)) {
+    addEmail(match[0]);
+  }
+  return [...domains];
+}
+
+function isOutsideIdentity(url: string, domains: string[]): boolean {
+  if (domains.length === 0) {
+    return false;
+  }
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/\.$/, "");
+    return !domains.some((domain) => host === domain || host.endsWith(`.${domain}`));
+  } catch {
+    return false;
+  }
 }
 
 function isSuspiciousUrl(url: string): boolean {
@@ -245,13 +349,17 @@ function isSuspiciousUrl(url: string): boolean {
       return true;
     }
     const host = parsed.hostname.toLowerCase();
-    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) || host.includes("xn--")) {
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) || host.includes("xn--") || isShortener(host)) {
       return true;
     }
     return false;
   } catch {
     return false;
   }
+}
+
+function isShortener(host: string): boolean {
+  return SHORTENERS.has(host) || [...SHORTENERS].some((name) => host.endsWith(`.${name}`));
 }
 
 function collapse(value: string): string {

@@ -135,8 +135,9 @@ export class PrismaAuditRepository implements AuditRepository {
   }
 
   async summarize(): Promise<DashboardSummary> {
-    const [total, awaitingReview, simulatedCount, grouped] = await Promise.all([
+    const [total, emailCount, awaitingReview, simulatedCount, grouped] = await Promise.all([
       this.prisma.securityEvent.count(),
+      this.prisma.securityEvent.count({ where: { source: "email" } }),
       this.prisma.securityEvent.count({ where: { requiresHumanReview: true } }),
       this.prisma.securityEvent.count({ where: { simulated: true } }),
       this.prisma.securityEvent.groupBy({
@@ -150,7 +151,7 @@ export class PrismaAuditRepository implements AuditRepository {
         bySeverity[row.severity] = row._count._all;
       }
     }
-    return { total, awaitingReview, bySeverity, simulatedCount };
+    return { total, emailCount, awaitingReview, bySeverity, simulatedCount };
   }
 
   async exists(source: string, externalId: string): Promise<boolean> {
@@ -159,6 +160,18 @@ export class PrismaAuditRepository implements AuditRepository {
       select: { id: true },
     });
     return row !== null;
+  }
+
+  async releaseIfUnflagged(source: string, externalId: string): Promise<boolean> {
+    const row = await this.prisma.securityEvent.findFirst({
+      where: { source, externalId, riskScore: 0 },
+      select: { id: true },
+    });
+    if (!row) {
+      return false;
+    }
+    await this.prisma.securityEvent.delete({ where: { id: row.id } });
+    return true;
   }
 }
 

@@ -9,7 +9,26 @@ import type { ContentSource } from "@/lib/security/types";
 
 const sources: ContentSource[] = ["manual", "email", "web", "file", "api"];
 
-export function DemoAnalysisForm({ activeProvider }: { activeProvider: string }) {
+function sourceLabel(source: ContentSource): string {
+  switch (source) {
+    case "manual":
+      return "Manual";
+    case "email":
+      return "Correo";
+    case "web":
+      return "Web";
+    case "file":
+      return "Archivo";
+    case "api":
+      return "API";
+    default: {
+      const unreachable: never = source;
+      return unreachable;
+    }
+  }
+}
+
+export function DemoAnalysisForm() {
   const router = useRouter();
   const [content, setContent] = useState("");
   const [subject, setSubject] = useState("");
@@ -59,11 +78,11 @@ export function DemoAnalysisForm({ activeProvider }: { activeProvider: string })
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <Label htmlFor="subject">Subject</Label>
+          <Label htmlFor="subject">Asunto</Label>
           <Input id="subject" value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={300} />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="source">Source</Label>
+          <Label htmlFor="source">Origen</Label>
           <select
             id="source"
             value={source}
@@ -72,21 +91,21 @@ export function DemoAnalysisForm({ activeProvider }: { activeProvider: string })
           >
             {sources.map((item) => (
               <option key={item} value={item}>
-                {item}
+                {sourceLabel(item)}
               </option>
             ))}
           </select>
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="content">Content</Label>
+        <Label htmlFor="content">Contenido</Label>
         <Textarea
           id="content"
           required
           value={content}
           maxLength={20000}
           onChange={(event) => setContent(event.target.value)}
-          placeholder="Paste a synthetic email or other untrusted text."
+          placeholder="Pega un correo de prueba u otro texto no confiable."
         />
       </div>
       <label className="flex items-center gap-2 text-sm">
@@ -95,7 +114,7 @@ export function DemoAnalysisForm({ activeProvider }: { activeProvider: string })
           checked={forceAnalysis}
           onChange={(event) => setForceAnalysis(event.target.checked)}
         />
-        Request analyzer review even if local triage would skip it
+        Pedir reporte aunque el triaje local lo deje pasar
       </label>
       <div className="flex flex-wrap gap-2">
         {DEMO_QUICK_LOADS.map((id) => sampleById(id))
@@ -112,15 +131,14 @@ export function DemoAnalysisForm({ activeProvider }: { activeProvider: string })
               setSource(sample.source);
             }}
           >
-            Load {sample.subject}
+            {sample.subject}
           </Button>
         ))}
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">Active analyzer: {activeProvider}. Submissions are labeled as your input, not simulated mailbox data.</p>
         <Button type="submit" disabled={pending}>
-          {pending ? "Analyzing" : "Analyze"}
+          {pending ? "Analizando" : "Analizar"}
         </Button>
       </div>
     </form>

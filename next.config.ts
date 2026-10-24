@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
     "@prisma/client",
     "@libsql/client",
     "@prisma/adapter-libsql",
+    "imapflow",
+    "mailparser",
   ],
   turbopack: {
     rules: {

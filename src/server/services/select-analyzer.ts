@@ -51,3 +51,20 @@ export function selectAnalyzer(env: ServerEnv): {
     }
   }
 }
+
+export function selectAlertReviewer(env: ServerEnv): {
+  analyzer: SecurityAnalyzer;
+  provider: AnalyzerProvider;
+  model: string;
+  reason: string;
+} {
+  if (env.GEMINI_API_KEY) {
+    return {
+      analyzer: createGeminiAnalyzer(env.GEMINI_API_KEY, env.GEMINI_MODEL),
+      provider: "gemini",
+      model: env.GEMINI_MODEL,
+      reason: "Gemini writes the alert review.",
+    };
+  }
+  return selectAnalyzer(env);
+}

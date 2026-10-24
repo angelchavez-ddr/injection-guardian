@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { decryptSecret, encryptSecret, MailboxAccessError } from "@/lib/auth/mailbox-token";
+import type { GmailImapCredentials } from "@/lib/connectors/email/gmail/app-password";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { isAuthorizedAdminEmail, type UserRole } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/db/client";
@@ -148,24 +149,88 @@ export async function upsertGoogleUser(input: {
   return toAppUser(upserted);
 }
 
+export type MailboxMethod = "oauth" | "app_password";
+
 export type MailboxStatus = {
   connected: boolean;
   connectedAt?: string;
+  method?: MailboxMethod;
+  mailboxEmail?: string;
 };
 
 export async function getMailboxStatus(userId: string): Promise<MailboxStatus> {
   const prisma = getPrisma();
   const row = await prisma.user.findUnique({
     where: { id: userId },
-    select: { gmailRefreshTokenEnc: true, gmailConnectedAt: true },
+    select: {
+      gmailRefreshTokenEnc: true,
+      gmailAppPasswordEnc: true,
+      gmailImapUser: true,
+      gmailConnectedAt: true,
+    },
   });
-  if (!row?.gmailRefreshTokenEnc) {
+  if (!row) {
     return { connected: false };
   }
+  const connectedAt = row.gmailConnectedAt?.toISOString();
+  if (row.gmailAppPasswordEnc && row.gmailImapUser) {
+    return {
+      connected: true,
+      connectedAt,
+      method: "app_password",
+      mailboxEmail: row.gmailImapUser,
+    };
+  }
+  if (row.gmailRefreshTokenEnc) {
+    return { connected: true, connectedAt, method: "oauth" };
+  }
+  return { connected: false };
+}
+
+export async function saveGmailAppPassword(
+  userId: string,
+  credentials: GmailImapCredentials,
+): Promise<void> {
+  const prisma = getPrisma();
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      gmailImapUser: credentials.user,
+      gmailAppPasswordEnc: encryptSecret(credentials.appPassword, encryptionSecret()),
+      gmailConnectedAt: new Date(),
+    },
+  });
+}
+
+export async function loadGmailImapCredentials(userId: string): Promise<GmailImapCredentials | null> {
+  const prisma = getPrisma();
+  const row = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { gmailAppPasswordEnc: true, gmailImapUser: true },
+  });
+  if (!row?.gmailAppPasswordEnc || !row.gmailImapUser) {
+    return null;
+  }
   return {
-    connected: true,
-    connectedAt: row.gmailConnectedAt?.toISOString(),
+    user: row.gmailImapUser,
+    appPassword: decryptSecret(row.gmailAppPasswordEnc, encryptionSecret()),
   };
+}
+
+export async function clearGmailAppPassword(userId: string): Promise<void> {
+  const prisma = getPrisma();
+  const row = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { gmailRefreshTokenEnc: true },
+  });
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      gmailImapUser: null,
+      gmailAppPasswordEnc: null,
+      ...(row?.gmailRefreshTokenEnc ? {} : { gmailConnectedAt: null }),
+    },
+  });
 }
 
 export async function saveGmailRefreshToken(userId: string, refreshToken: string): Promise<void> {
@@ -210,7 +275,7 @@ function encryptionSecret(): string {
   const env = getServerEnv();
   const secret = env.SESSION_SECRET ?? env.GOOGLE_CLIENT_SECRET;
   if (!secret) {
-    throw new MailboxAccessError("unreadable_token");
+    throw new MailboxAccessError("encryption_unavailable");
   }
   return secret;
 }

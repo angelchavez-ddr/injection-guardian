@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { StatCards } from "@/components/dashboard/stat-cards";
+import { ConsoleSkeleton } from "@/components/dashboard/console-skeleton";
 import { FindingsTable } from "@/components/dashboard/findings-table";
+import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { DemoAnalysisForm } from "@/components/security/demo-analysis-form";
 import { InboxScanPanel } from "@/components/security/inbox-scan-panel";
 import { Alert } from "@/components/ui/alert";
@@ -18,7 +19,7 @@ type DashboardSearch = {
 
 export default function DashboardPage(props: { searchParams: Promise<DashboardSearch> }) {
   return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading findings…</p>}>
+    <Suspense fallback={<ConsoleSkeleton />}>
       <DashboardContent searchParams={props.searchParams} />
     </Suspense>
   );
@@ -30,46 +31,47 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<Dashbo
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Layered screening for direct and indirect prompt injection. Local indicators triage items before any model
-          call. The policy engine, not the model, decides whether a tool may run.
-        </p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="font-mono text-[11px] tracking-[0.22em] text-teal-400">CONSOLA</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Overview</h1>
+        </div>
+        <p className="text-xs text-muted-foreground">Solo lectura</p>
       </div>
-      <Alert>
-        La inyección de prompts no se puede eliminar. El escaneo de Gmail es de solo lectura: guarda un hallazgo y
-        no envía, borra ni ejecuta acciones.
-      </Alert>
       {data.locked || !data.session ? (
         <Alert>Inicia sesión para revisar la bandeja y los hallazgos.</Alert>
       ) : (
         <>
-          <InboxScanPanel
-            authMethod={data.session.authMethod}
-            googleAuthConfigured={data.config.googleAuthConfigured}
-            mailbox={data.mailbox}
-            mailboxCode={single(query.mailbox)}
-            scanCode={single(query.scan)}
-            processed={single(query.processed)}
-            flagged={single(query.flagged)}
-            skipped={single(query.skipped)}
-          />
-          <StatCards summary={data.summary} />
+          <OverviewBoard summary={data.summary} reviewed={data.reviewed} />
+          <div className="grid items-start gap-4 xl:grid-cols-5">
+            <Card className="xl:col-span-3">
+              <CardHeader>
+                <CardTitle>Hallazgos recientes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FindingsTable findings={data.recent} />
+              </CardContent>
+            </Card>
+            <div className="xl:col-span-2">
+              <InboxScanPanel
+                accountEmail="angel.chavez@ddrinnova.com"
+                authMethod={data.session.authMethod}
+                googleAuthConfigured={data.config.googleAuthConfigured}
+                mailbox={data.mailbox}
+                mailboxCode={single(query.mailbox)}
+                scanCode={single(query.scan)}
+                processed={single(query.processed)}
+                flagged={single(query.flagged)}
+                skipped={single(query.skipped)}
+              />
+            </div>
+          </div>
           <Card>
             <CardHeader>
-              <CardTitle>Recent security events</CardTitle>
+              <CardTitle>Probar un texto</CardTitle>
             </CardHeader>
             <CardContent>
-              <FindingsTable findings={data.recent} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Analyze sample content</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DemoAnalysisForm activeProvider={data.config.activeProvider} />
+              <DemoAnalysisForm />
             </CardContent>
           </Card>
         </>

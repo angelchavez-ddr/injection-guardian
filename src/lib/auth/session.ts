@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getServerEnv } from "@/lib/env/server";
 import type { ServerEnv } from "@/lib/env/schema";
 
@@ -129,6 +130,7 @@ export function verifySessionToken(
 }
 
 export async function getUserSession(): Promise<UserSession | null> {
+  await connection();
   const cookieStore = await cookies();
   const raw = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   return verifySessionToken(raw);
@@ -157,6 +159,7 @@ export async function createUserSessionCookie(input: {
   picture?: string;
   authMethod: "google" | "credentials";
 }): Promise<UserSession> {
+  await connection();
   const env = getServerEnv();
   const normalizedEmail = input.email.trim().toLowerCase();
   const role: UserRole = isAuthorizedAdminEmail(normalizedEmail, env) ? "admin" : "user";

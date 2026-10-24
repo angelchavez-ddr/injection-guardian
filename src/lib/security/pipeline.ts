@@ -65,9 +65,10 @@ async function runSecurityPipelineSync(
   const correlationId = createId();
 
   const normalized = normalizeContent({
-    content: input.content,
+    content: input.subject ? `${input.subject}\n${input.content}` : input.content,
     contentType: input.contentType,
     maxChars: input.maxInputChars ?? DEFAULT_MAX_INPUT_CHARS,
+    sender: input.sender,
   });
   const detected = detectIndicators(normalized);
   const local = calculateLocalRisk(detected, config);
