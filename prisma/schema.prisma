@@ -11,6 +11,26 @@ datasource db {
   provider = "sqlite"
 }
 
+/// Authenticated user. Only angcoder.c@gmail.com holds the "admin" role.
+model User {
+  id           String    @id
+  email        String    @unique
+  name         String?
+  passwordHash String?
+  picture      String?
+  role         String    @default("user")
+  authProvider String    @default("credentials")
+  lastLoginAt  DateTime?
+  /// AES-GCM payload for this user's Gmail refresh token. Never store the token in plaintext.
+  gmailRefreshTokenEnc String?
+  gmailHistoryId       String?
+  gmailConnectedAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([role])
+}
+
 /// Authorized input source. Credentials are never stored on this model.
 model Connector {
   id         String          @id

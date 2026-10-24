@@ -1,13 +1,15 @@
+import { getAdminSession } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env/server";
-import { assertDemoAccess } from "@/lib/http/errors";
+import { assertAdminOrDemoAccess } from "@/lib/http/errors";
 import { errorResponse, jsonResponse } from "@/lib/http/responses";
 import { listEventsQuerySchema } from "@/lib/http/schemas";
-import { ensureDemoSeed, getAuditRepository } from "@/server/services/security-service";
+import { getAuditRepository } from "@/server/services/security-service";
 
 export async function GET(request: Request) {
   try {
     const env = getServerEnv();
-    assertDemoAccess(env.demoMode);
+    const session = await getAdminSession();
+    assertAdminOrDemoAccess(env.demoMode, Boolean(session));
     const url = new URL(request.url);
     const query = listEventsQuerySchema.parse({
       severity: url.searchParams.get("severity") ?? undefined,
@@ -15,7 +17,6 @@ export async function GET(request: Request) {
       limit: url.searchParams.get("limit") ?? undefined,
       cursor: url.searchParams.get("cursor") ?? undefined,
     });
-    await ensureDemoSeed();
     const findings = await getAuditRepository().listFindings(query);
     return jsonResponse({
       events: findings.map((finding) => ({

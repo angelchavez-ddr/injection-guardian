@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { GeminiAnalyzer } from "@/lib/ai/providers/gemini-analyzer";
 import { GrokAnalyzer } from "@/lib/ai/providers/grok-analyzer";
+import { LocalAnalyzer, localChatCompletionsUrl } from "@/lib/ai/providers/local-analyzer";
 import { AnalyzerError } from "@/lib/ai/providers/errors";
 import { parseModelPayload } from "@/lib/ai/providers/parse-response";
 import type { SecurityAnalysisInput } from "@/lib/ai/providers/types";
@@ -93,6 +94,56 @@ describe("analyzer responses", () => {
       generate: async () => "nope",
     });
     await expect(broken.analyze(input)).rejects.toMatchObject({ code: "malformed" });
+  });
+
+  it("calls an OpenAI-compatible local endpoint without a cloud key", async () => {
+    let capturedUrl = "";
+    let capturedAuth: string | null = null;
+    const analyzer = new LocalAnalyzer({
+      model: "gpt-oss:20b",
+      endpoint: localChatCompletionsUrl("http://127.0.0.1:11434/v1"),
+      fetchImpl: async (url, init) => {
+        capturedUrl = String(url);
+        capturedAuth = new Headers(init?.headers).get("authorization");
+        return Response.json({ choices: [{ message: { content: JSON.stringify(validPayload) } }] });
+      },
+    });
+    const result = await analyzer.analyze(input);
+    expect(localChatCompletionsUrl("http://127.0.0.1:11434/v1/")).toBe(
+      "http://127.0.0.1:11434/v1/chat/completions",
+    );
+    expect(capturedUrl).toBe("http://127.0.0.1:11434/v1/chat/completions");
+    expect(capturedAuth).toBeNull();
+    expect(result.provider).toBe("local");
+    expect(result.model).toBe("gpt-oss:20b");
+    expect(result.advisoryScore).toBe(70);
+  });
+
+  it("maps local rate limits without calling a network", async () => {
+    const analyzer = new LocalAnalyzer({
+      model: "gpt-oss:20b",
+      endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+      fetchImpl: async () => new Response("busy", { status: 429 }),
+    });
+    await expect(analyzer.analyze(input)).rejects.toMatchObject({ code: "rate_limit" });
+  });
+
+  it("rejects malformed local model content", async () => {
+    const analyzer = new LocalAnalyzer({
+      model: "gpt-oss:20b",
+      endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+      fetchImpl: async () => Response.json({ choices: [{ message: { content: "{" } }] }),
+    });
+    await expect(analyzer.analyze(input)).rejects.toMatchObject({ code: "malformed" });
+  });
+
+  it("rejects a local response that is not a chat completion", async () => {
+    const analyzer = new LocalAnalyzer({
+      model: "gpt-oss:20b",
+      endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+      fetchImpl: async () => Response.json({ response: "not a completion" }),
+    });
+    await expect(analyzer.analyze(input)).rejects.toMatchObject({ code: "malformed" });
   });
 
   it("keeps the mock analyzer free of external side effects", async () => {

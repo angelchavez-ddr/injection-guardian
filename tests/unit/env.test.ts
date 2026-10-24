@@ -10,8 +10,9 @@ describe("server environment", () => {
     expect(env.DATABASE_URL).toBe("file:./dev.db");
     expect(env.databaseKind).toBe("local-sqlite");
     expect(env.gmailConfigured).toBe(false);
+    expect(env.ADMIN_EMAIL).toBe("angcoder.c@gmail.com");
     expect(config.activeProvider).toBe("mock");
-    expect(config.authentication).toBe("not_implemented");
+    expect(config.authentication).toBe("demo_admin_allowlist");
     expect(JSON.stringify(config)).not.toContain("sk-");
   });
 
@@ -36,6 +37,16 @@ describe("server environment", () => {
     expect(env.databaseKind).toBe("libsql");
     expect(env.AI_PROVIDER).toBe("gemini");
     expect(config.activeProvider).toBe("gemini");
+  });
+
+  it("selects the local analyzer without a cloud key", () => {
+    const env = parseServerEnv({ AI_PROVIDER: "local", DEMO_MODE: "true" });
+    const config = publicRuntimeConfig(env);
+    expect(env.LOCAL_LLM_BASE_URL).toBe("http://127.0.0.1:11434/v1");
+    expect(env.LOCAL_LLM_MODEL).toBe("gpt-oss:20b");
+    expect(env.LOCAL_LLM_API_KEY).toBeUndefined();
+    expect(config.activeProvider).toBe("local");
+    expect(config.activeModel).toBe("gpt-oss:20b");
   });
 
   it("rejects an unknown provider", () => {

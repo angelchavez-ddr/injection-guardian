@@ -77,7 +77,7 @@ export const POLICY_DECISIONS = [
 ] as const;
 export type PolicyDecisionName = (typeof POLICY_DECISIONS)[number];
 
-export const ANALYZER_PROVIDERS = ["grok", "gemini", "mock"] as const;
+export const ANALYZER_PROVIDERS = ["grok", "gemini", "local", "mock"] as const;
 export type AnalyzerProvider = (typeof ANALYZER_PROVIDERS)[number];
 
 export const CONFIDENCE_MEANING =

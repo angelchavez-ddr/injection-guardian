@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { AuditRepository, ListFindingsQuery } from "@/lib/audit/repository";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import {
+  ANALYZER_PROVIDERS,
   ATTACK_TYPES,
   POLICY_DECISIONS,
   RECOMMENDED_ACTIONS,
@@ -276,8 +277,8 @@ function asPolicy(value: string): FindingView["policyDecision"] {
 }
 
 function asProvider(value: string): AnalysisView["provider"] {
-  if (value === "grok" || value === "gemini" || value === "mock") {
-    return value;
+  if ((ANALYZER_PROVIDERS as readonly string[]).includes(value)) {
+    return value as AnalysisView["provider"];
   }
   return null;
 }

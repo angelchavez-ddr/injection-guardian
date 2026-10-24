@@ -59,16 +59,17 @@ If `prisma generate` fails after a clean install, run `npm run db:generate` once
 
 - `AI_PROVIDER=grok` with `XAI_API_KEY` calls `https://api.x.ai/v1/chat/completions`.
 - `AI_PROVIDER=gemini` with `GEMINI_API_KEY` uses `@google/genai`.
-- Demo mode without the selected key uses `MockAnalyzer`.
+- `AI_PROVIDER=local` calls `LOCAL_LLM_BASE_URL` (default `http://127.0.0.1:11434/v1/chat/completions`) with `LOCAL_LLM_MODEL` (default `gpt-oss:20b`). No cloud key is required. Reach a DGX through `ssh -N -L 11434:localhost:11434 USER@DGX_HOST` instead of exposing Ollama.
+- Demo mode without the selected cloud key uses `MockAnalyzer`. `local` does not fall back to the mock.
 - Change `XAI_MODEL` if your xAI account uses a different model id than `grok-4`.
 
 A timeout, HTTP 429, or schema failure becomes `analysis_failed` and a fail-closed policy decision. No tool runs.
 
 ## Gmail
 
-Set the OAuth client id, secret, and redirect URI. Start at `/api/connectors/gmail/start` while `DEMO_MODE=true`. The callback shows a refresh token once so you can place it in `GOOGLE_REFRESH_TOKEN`. It is not written to the database. The scope requested is `https://www.googleapis.com/auth/gmail.readonly`.
+Set the OAuth client id, secret, and redirect URI. Sign in with Google, then choose Conectar Gmail on Overview. That request uses `https://www.googleapis.com/auth/gmail.readonly` plus identity scopes. The refresh token is encrypted on the user row and is not shown in the browser or the audit log. Escanear correos entrantes reads the 10 newest inbox messages, fetches each body, and runs the same local indicators, triage, and policy pipeline.
 
-Without those values, the synthetic mailbox is used. That mailbox is enough for the dashboard and tests.
+`GOOGLE_REFRESH_TOKEN` remains an optional server-wide fallback for the connector status endpoint. Without a per-user token, Overview shows the connect action instead of scanning a mailbox.
 
 ## Troubleshooting
 

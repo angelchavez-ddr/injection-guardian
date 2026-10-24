@@ -1,5 +1,6 @@
 import "server-only";
 import { DEMO_SAMPLES } from "@/lib/demo/samples";
+import { getAdminSession } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/db/client";
 import { getServerEnv } from "@/lib/env/server";
 import { publicRuntimeConfig } from "@/lib/env/public-config";
@@ -7,6 +8,7 @@ import { MockAnalyzer } from "@/lib/ai/providers/mock-analyzer";
 import { runSecurityPipeline } from "@/lib/security/pipeline";
 import type { ContentSource, ContentType, FindingView } from "@/lib/security/types";
 import { PrismaAuditRepository, isUniqueConstraintError } from "@/server/repositories/prisma-audit-repository";
+import { getMailboxStatus, type MailboxStatus } from "@/server/repositories/user-repository";
 import { selectAnalyzer } from "@/server/services/select-analyzer";
 
 const SYNTHETIC_CONNECTOR_ID = "synthetic-inbox";
@@ -97,39 +99,42 @@ async function seedDemoFindings(): Promise<void> {
 
 export async function getDashboardData() {
   const env = getServerEnv();
+  const session = await getAdminSession();
   const config = publicRuntimeConfig(env);
-  if (!env.demoMode) {
-    return { locked: true as const, config };
+  const mailbox: MailboxStatus = session
+    ? await getMailboxStatus(session.userId)
+    : { connected: false };
+  if (!session && !env.demoMode) {
+    return { locked: true as const, config, session: null, mailbox };
   }
-  await ensureDemoSeed();
   const repo = getAuditRepository();
   const [summary, recent] = await Promise.all([
     repo.summarize(),
     repo.listFindings({ limit: 8 }),
   ]);
-  return { locked: false as const, config, summary, recent };
+  return { locked: false as const, config, session, summary, recent, mailbox };
 }
 
 export async function getInvestigationPage(query: { severity?: FindingView["severity"]; status?: FindingView["status"] }) {
   const env = getServerEnv();
+  const session = await getAdminSession();
   const config = publicRuntimeConfig(env);
-  if (!env.demoMode) {
-    return { locked: true as const, config, findings: [] as FindingView[] };
+  if (!session && !env.demoMode) {
+    return { locked: true as const, config, session: null, findings: [] as FindingView[] };
   }
-  await ensureDemoSeed();
   const findings = await getAuditRepository().listFindings({
     limit: 100,
     severity: query.severity,
     status: query.status,
   });
-  return { locked: false as const, config, findings };
+  return { locked: false as const, config, session, findings };
 }
 
 export async function getInvestigation(id: string) {
   const env = getServerEnv();
-  if (!env.demoMode) {
+  const session = await getAdminSession();
+  if (!session && !env.demoMode) {
     return { locked: true as const, finding: null };
   }
-  await ensureDemoSeed();
   return { locked: false as const, finding: await getAuditRepository().getFinding(id) };
 }

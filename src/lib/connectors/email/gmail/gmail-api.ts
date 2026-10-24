@@ -13,13 +13,71 @@ export function createOAuthClient(env: ServerEnv) {
   );
 }
 
-export function buildGmailAuthUrl(env: ServerEnv): string {
+export const GOOGLE_IDENTITY_SCOPES = ["openid", "email", "profile"] as const;
+
+export function buildGmailAuthUrl(env: ServerEnv, state?: string): string {
   const client = createOAuthClient(env);
   return client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: [GMAIL_READONLY_SCOPE],
+    scope: [GMAIL_READONLY_SCOPE, ...GOOGLE_IDENTITY_SCOPES],
+    state,
   });
+}
+
+export function buildGoogleAdminLoginUrl(env: ServerEnv, state: string): string {
+  const client = createOAuthClient(env);
+  return client.generateAuthUrl({
+    access_type: "online",
+    prompt: "select_account",
+    scope: [...GOOGLE_IDENTITY_SCOPES],
+    state,
+  });
+}
+
+export type GoogleVerifiedProfile = {
+  email: string;
+  emailVerified: boolean;
+  name?: string;
+  picture?: string;
+};
+
+export async function verifyGoogleTokensProfile(
+  env: ServerEnv,
+  tokens: { id_token?: string | null; access_token?: string | null },
+): Promise<GoogleVerifiedProfile> {
+  const client = createOAuthClient(env);
+  if (tokens.id_token && env.GOOGLE_CLIENT_ID) {
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (payload?.email) {
+      return {
+        email: payload.email.toLowerCase(),
+        emailVerified: Boolean(payload.email_verified),
+        name: payload.name,
+        picture: payload.picture,
+      };
+    }
+  }
+
+  if (tokens.access_token) {
+    client.setCredentials({ access_token: tokens.access_token });
+    const oauth2 = google.oauth2({ version: "v2", auth: client });
+    const { data } = await oauth2.userinfo.get();
+    if (data.email) {
+      return {
+        email: data.email.toLowerCase(),
+        emailVerified: Boolean(data.verified_email),
+        name: data.name ?? undefined,
+        picture: data.picture ?? undefined,
+      };
+    }
+  }
+
+  throw new Error("Google did not return a verified email address.");
 }
 
 export async function exchangeGmailCode(env: ServerEnv, code: string) {
@@ -28,9 +86,13 @@ export async function exchangeGmailCode(env: ServerEnv, code: string) {
   return tokens;
 }
 
-export function createGmailApi(env: ServerEnv): GmailApi {
+export function createGmailApi(env: ServerEnv, refreshToken?: string): GmailApi {
+  const token = refreshToken ?? env.GOOGLE_REFRESH_TOKEN;
+  if (!token) {
+    throw new Error("Gmail refresh token is not available.");
+  }
   const auth = createOAuthClient(env);
-  auth.setCredentials({ refresh_token: env.GOOGLE_REFRESH_TOKEN });
+  auth.setCredentials({ refresh_token: token });
   const gmail = google.gmail({ version: "v1", auth });
   return {
     async listMessages(input) {

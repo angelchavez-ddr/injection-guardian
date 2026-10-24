@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
-import { DEMO_SAMPLES } from "@/lib/demo/samples";
+import { DEMO_QUICK_LOADS, sampleById } from "@/lib/demo/samples";
 import type { ContentSource } from "@/lib/security/types";
 
 const sources: ContentSource[] = ["manual", "email", "web", "file", "api"];
@@ -98,7 +98,9 @@ export function DemoAnalysisForm({ activeProvider }: { activeProvider: string })
         Request analyzer review even if local triage would skip it
       </label>
       <div className="flex flex-wrap gap-2">
-        {DEMO_SAMPLES.slice(0, 4).map((sample) => (
+        {DEMO_QUICK_LOADS.map((id) => sampleById(id))
+          .filter((sample) => sample !== undefined)
+          .map((sample) => (
           <Button
             key={sample.id}
             type="button"

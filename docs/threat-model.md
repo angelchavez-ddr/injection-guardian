@@ -14,7 +14,7 @@ Injection Guardian reduces risk from prompt injection. It does not prove that un
 
 - Browser to Next.js server. The browser must not receive API keys, OAuth secrets, or refresh tokens.
 - Connector to core pipeline. Provider payloads are normalized before scoring.
-- Pipeline to model. The model receives a minimized excerpt and is told the excerpt is data.
+- Pipeline to model. The model receives a minimized excerpt and is told the excerpt is data. `AI_PROVIDER=local` sends that excerpt to an OpenAI-compatible process on the operator network, preferably through an SSH tunnel. It is still untrusted output.
 - Model to policy engine. Proposed tools are untrusted until the catalog validates them.
 - Policy engine to tools. This build has no external tool side effects.
 - Server to database. Audit rows are redacted excerpts, not full bodies or credentials.
@@ -51,8 +51,9 @@ Injection Guardian reduces risk from prompt injection. It does not prove that un
 - Homoglyph coverage is a small map, not a full confusable-character pass.
 - Redaction is heuristic and can miss unusual secret formats.
 - Model review can be wrong in either direction. It cannot authorize an action, but it also cannot prove safety.
-- There is no account system, approval workflow, token vault, or production Gmail watch channel.
+- There is no approval workflow or production Gmail watch channel. A signed-in account can store an encrypted Gmail refresh token, but there is no rotation or hardware vault.
 - Local SQLite and a single-process rate limit are not a multi-user control.
+- A local model can be slow, wrong, or unavailable. Unreachable analysis fails closed. Publishing Ollama beyond the tunnel exposes the model and any prompt sent to it.
 
 ## Out of scope
 

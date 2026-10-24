@@ -12,7 +12,9 @@ export type PublicRuntimeConfig = {
   gmailConfigured: boolean;
   gmailScope: string;
   databaseKind: ServerEnv["databaseKind"];
-  authentication: "not_implemented";
+  adminEmail: string;
+  googleAuthConfigured: boolean;
+  authentication: "google_oauth_admin" | "demo_admin_allowlist";
 };
 
 export function publicRuntimeConfig(env: ServerEnv): PublicRuntimeConfig {
@@ -26,7 +28,9 @@ export function publicRuntimeConfig(env: ServerEnv): PublicRuntimeConfig {
     gmailConfigured: env.gmailConfigured,
     gmailScope: GMAIL_READONLY_SCOPE,
     databaseKind: env.databaseKind,
-    authentication: "not_implemented",
+    adminEmail: env.ADMIN_EMAIL,
+    googleAuthConfigured: env.googleAuthConfigured,
+    authentication: env.googleAuthConfigured ? "google_oauth_admin" : "demo_admin_allowlist",
   };
 }
 
@@ -71,6 +75,13 @@ export function resolveActiveAnalyzer(env: ServerEnv): {
       };
     }
     return { provider: "gemini", model: env.GEMINI_MODEL, reason: "Gemini is the configured analyzer." };
+  }
+  if (env.AI_PROVIDER === "local") {
+    return {
+      provider: "local",
+      model: env.LOCAL_LLM_MODEL,
+      reason: "The local analyzer talks to an OpenAI-compatible endpoint on this network. No cloud key is required.",
+    };
   }
   return assertNever(env.AI_PROVIDER);
 }

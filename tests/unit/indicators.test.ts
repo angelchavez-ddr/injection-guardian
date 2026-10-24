@@ -49,4 +49,19 @@ describe("indicator detection", () => {
       expect.arrayContaining(["privilege_escalation", "tool_abuse"]),
     );
   });
+
+  it("flags realistic demo emails, including instructions hidden in HTML", () => {
+    const invoice = DEMO_SAMPLES.find((sample) => sample.id === "synthetic-demo-invoice-hidden");
+    const helpdesk = DEMO_SAMPLES.find((sample) => sample.id === "synthetic-demo-helpdesk");
+    const quote = DEMO_SAMPLES.find((sample) => sample.id === "synthetic-demo-procurement-es");
+    expect(idsFor(invoice?.content ?? "", "html")).toEqual(
+      expect.arrayContaining(["hidden_markup", "instruction_override", "data_exfiltration", "tool_abuse"]),
+    );
+    expect(idsFor(helpdesk?.content ?? "")).toEqual(
+      expect.arrayContaining(["instruction_override", "role_override", "data_exfiltration", "tool_abuse"]),
+    );
+    expect(idsFor(quote?.content ?? "", "html")).toEqual(
+      expect.arrayContaining(["hidden_markup", "instruction_override", "system_prompt_exfiltration", "data_exfiltration"]),
+    );
+  });
 });

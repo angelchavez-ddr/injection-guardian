@@ -1,5 +1,6 @@
+import { getAdminSession } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env/server";
-import { ApiError, assertDemoAccess } from "@/lib/http/errors";
+import { ApiError, assertAdminOrDemoAccess } from "@/lib/http/errors";
 import { allowRequest } from "@/lib/http/rate-limit";
 import { errorResponse, jsonResponse } from "@/lib/http/responses";
 import { analyzeRequestSchema } from "@/lib/http/schemas";
@@ -9,7 +10,8 @@ import { analyzeSubmission } from "@/server/services/security-service";
 export async function POST(request: Request) {
   try {
     const env = getServerEnv();
-    assertDemoAccess(env.demoMode);
+    const session = await getAdminSession();
+    assertAdminOrDemoAccess(env.demoMode, Boolean(session));
     const key = request.headers.get("x-forwarded-for") ?? "local";
     if (!allowRequest(key, 30, 60_000)) {
       throw new ApiError(429, "rate_limited", "Too many analysis requests. Wait a minute and try again.");

@@ -3,21 +3,30 @@ import { connection } from "next/server";
 import { StatCards } from "@/components/dashboard/stat-cards";
 import { FindingsTable } from "@/components/dashboard/findings-table";
 import { DemoAnalysisForm } from "@/components/security/demo-analysis-form";
+import { InboxScanPanel } from "@/components/security/inbox-scan-panel";
 import { Alert } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardData } from "@/server/services/security-service";
 
-export default function DashboardPage() {
+type DashboardSearch = {
+  mailbox?: string | string[];
+  scan?: string | string[];
+  processed?: string | string[];
+  flagged?: string | string[];
+  skipped?: string | string[];
+};
+
+export default function DashboardPage(props: { searchParams: Promise<DashboardSearch> }) {
   return (
     <Suspense fallback={<p className="text-sm text-muted-foreground">Loading findings…</p>}>
-      <DashboardContent />
+      <DashboardContent searchParams={props.searchParams} />
     </Suspense>
   );
 }
 
-async function DashboardContent() {
+async function DashboardContent({ searchParams }: { searchParams: Promise<DashboardSearch> }) {
   await connection();
-  const data = await getDashboardData();
+  const [data, query] = await Promise.all([getDashboardData(), searchParams]);
 
   return (
     <>
@@ -29,13 +38,23 @@ async function DashboardContent() {
         </p>
       </div>
       <Alert>
-        Local demo only. Prompt injection cannot be eliminated. Counts on this page come from the local audit log,
-        including clearly labeled simulated mailbox samples.
+        La inyección de prompts no se puede eliminar. El escaneo de Gmail es de solo lectura: guarda un hallazgo y
+        no envía, borra ni ejecuta acciones.
       </Alert>
-      {data.locked ? (
-        <Alert>Authentication is not implemented. Set DEMO_MODE=true to use the local console.</Alert>
+      {data.locked || !data.session ? (
+        <Alert>Inicia sesión para revisar la bandeja y los hallazgos.</Alert>
       ) : (
         <>
+          <InboxScanPanel
+            authMethod={data.session.authMethod}
+            googleAuthConfigured={data.config.googleAuthConfigured}
+            mailbox={data.mailbox}
+            mailboxCode={single(query.mailbox)}
+            scanCode={single(query.scan)}
+            processed={single(query.processed)}
+            flagged={single(query.flagged)}
+            skipped={single(query.skipped)}
+          />
           <StatCards summary={data.summary} />
           <Card>
             <CardHeader>
@@ -57,4 +76,8 @@ async function DashboardContent() {
       )}
     </>
   );
+}
+
+function single(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }

@@ -72,8 +72,8 @@ async function main() {
           await client.execute(statement);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          if (/already exists/i.test(message)) {
-            console.log(`  (table/index already exists, continuing)`);
+          if (/already exists/i.test(message) || /duplicate column name/i.test(message)) {
+            console.log(`  (already present, continuing)`);
           } else {
             throw err;
           }
